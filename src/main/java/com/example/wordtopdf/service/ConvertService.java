@@ -4,7 +4,6 @@ import com.example.wordtopdf.config.ConvertProperties;
 import com.example.wordtopdf.docx.DocxTemplateFiller;
 import com.example.wordtopdf.docx.HeaderImageInserter;
 import com.example.wordtopdf.docx.SimplePdfExporter;
-import com.example.wordtopdf.docx.SvgToPngConverter;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,22 +118,10 @@ public class ConvertService {
             return;
         }
         try {
-            // 如果头图是 SVG，先用 Batik 转成 PNG 再插入。
-            // docx4j 的 BinaryPartAbstractImage 不直接吃 SVG（Word 对 SVG 的支持参差不齐，
-            // 老 Word 打开 SVG 的 docx 可能不显示）。转成 PNG 后视觉一致、兼容性最好。
-            byte[] imageToInsert = SvgToPngConverter.convertIfSvg(image);
-            if (imageToInsert != image) {
-                log.info("Header image was SVG, converted to PNG ({} bytes → {} bytes).",
-                        image.length, imageToInsert.length);
-            }
-
-            // altText 是图片的无障碍描述（屏幕阅读器会读），不影响视觉渲染。
-            // 从配置路径里提取文件名（不含扩展名）作为 altText，
-            // 这样换图片不用改代码。
             String altText = deriveAltText(properties.getHeaderImage());
             HeaderImageInserter.insertAtTop(
                     pkg,
-                    imageToInsert,
+                    image,
                     altText,
                     properties.getHeaderImageWidthEmu(),
                     properties.getHeaderImageHeightEmu()
