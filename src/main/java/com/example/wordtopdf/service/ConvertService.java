@@ -123,8 +123,8 @@ public class ConvertService {
                     pkg,
                     image,
                     altText,
-                    properties.getHeaderImageWidthEmu(),
-                    properties.getHeaderImageHeightEmu()
+                    properties.getHeaderImageWidth(),
+                    properties.getHeaderImageHeight()
             );
         } catch (Exception e) {
             throw new ConversionException("Failed to insert header image: " + e.getMessage(), e);

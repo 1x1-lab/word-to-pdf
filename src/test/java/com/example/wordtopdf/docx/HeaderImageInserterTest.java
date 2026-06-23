@@ -1,6 +1,7 @@
 package com.example.wordtopdf.docx;
 
 import com.example.wordtopdf.testsupport.DocxTemplateBuilder;
+import org.docx4j.dml.wordprocessingDrawing.Inline;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.openpackaging.parts.relationships.Namespaces;
@@ -9,11 +10,11 @@ import org.docx4j.wml.Drawing;
 import org.docx4j.wml.P;
 import org.docx4j.wml.R;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -38,13 +39,10 @@ class HeaderImageInserterTest {
         R run = (R) firstParagraph.getContent().get(0);
         assertThat(run.getContent()).anyMatch(Drawing.class::isInstance);
 
-        // Image relationship should be added to the package.
         boolean hasImageRel = main.getRelationshipsPart().getRelationships().getRelationship().stream()
                 .map(Relationship::getType)
                 .anyMatch(Namespaces.IMAGE::equals);
         assertThat(hasImageRel).isTrue();
-
-        // Body content preserved below.
         assertThat(main.getContent().get(1)).isInstanceOf(P.class);
     }
 
@@ -60,80 +58,63 @@ class HeaderImageInserterTest {
         byte[] png = makePng(10, 10);
         WordprocessingMLPackage pkg = DocxTemplateBuilder.build("body");
 
-        long w = 1234L;
-        long h = 5678L;
+        double w = 5.0;  // 5 cm
+        double h = 2.0;  // 2 cm
         HeaderImageInserter.insertAtTop(pkg, png, "logo", w, h);
 
         var inline = firstInline(pkg);
-        assertThat(inline.getExtent().getCx()).isEqualTo(w);
-        assertThat(inline.getExtent().getCy()).isEqualTo(h);
+        assertThat(inline.getExtent().getCx()).isEqualTo(Math.round(5.0 * 360000));
+        assertThat(inline.getExtent().getCy()).isEqualTo(Math.round(2.0 * 360000));
     }
 
-    /**
-     * 只设宽度，高度应该按原始宽高比自动缩放，保持图片比例。
-     */
     @Test
     void appliesWidthOnlyKeepsAspectRatio() throws Exception {
-        // 40x30 px → 原始比例 4:3
         byte[] png = makePng(40, 30);
 
-        // 先不设尺寸，读原始 cx/cy
         WordprocessingMLPackage ref = DocxTemplateBuilder.build("body");
-        HeaderImageInserter.insertAtTop(ref, png, "logo", 0L, 0L);
+        HeaderImageInserter.insertAtTop(ref, png, "logo", 0, 0);
         long origCx = firstInline(ref).getExtent().getCx();
         long origCy = firstInline(ref).getExtent().getCy();
-        assertThat(origCx).isPositive();
-        assertThat(origCy).isPositive();
 
-        // 只设宽度 = 400000 EMU
         WordprocessingMLPackage pkg = DocxTemplateBuilder.build("body");
-        HeaderImageInserter.insertAtTop(pkg, png, "logo", 400000L, 0L);
+        HeaderImageInserter.insertAtTop(pkg, png, "logo", 5.0, 0);  // 宽 5cm
 
         var inline = firstInline(pkg);
-        assertThat(inline.getExtent().getCx()).isEqualTo(400000L);
-        // 高度按比例：origCy * 400000 / origCx
-        long expectedCy = origCy * 400000L / origCx;
+        assertThat(inline.getExtent().getCx()).isEqualTo(Math.round(5.0 * 360000));
+        long expectedCy = Math.round((double) origCy * (5.0 * 360000) / origCx);
         assertThat(inline.getExtent().getCy()).isEqualTo(expectedCy);
     }
 
-    /**
-     * 只设高度，宽度应该按原始宽高比自动缩放。
-     */
     @Test
     void appliesHeightOnlyKeepsAspectRatio() throws Exception {
         byte[] png = makePng(40, 30);
 
         WordprocessingMLPackage ref = DocxTemplateBuilder.build("body");
-        HeaderImageInserter.insertAtTop(ref, png, "logo", 0L, 0L);
+        HeaderImageInserter.insertAtTop(ref, png, "logo", 0, 0);
         long origCx = firstInline(ref).getExtent().getCx();
         long origCy = firstInline(ref).getExtent().getCy();
 
-        // 只设高度 = 300000 EMU
         WordprocessingMLPackage pkg = DocxTemplateBuilder.build("body");
-        HeaderImageInserter.insertAtTop(pkg, png, "logo", 0L, 300000L);
+        HeaderImageInserter.insertAtTop(pkg, png, "logo", 0, 2.0);  // 高 2cm
 
         var inline = firstInline(pkg);
-        assertThat(inline.getExtent().getCy()).isEqualTo(300000L);
-        long expectedCx = origCx * 300000L / origCy;
+        assertThat(inline.getExtent().getCy()).isEqualTo(Math.round(2.0 * 360000));
+        long expectedCx = Math.round((double) origCx * (2.0 * 360000) / origCy);
         assertThat(inline.getExtent().getCx()).isEqualTo(expectedCx);
     }
 
-    /**
-     * 两个都不设（都 0），保持原始尺寸。
-     */
     @Test
     void preservesOriginalSizeWhenBothZero() throws Exception {
         byte[] png = makePng(40, 30);
 
         WordprocessingMLPackage pkg = DocxTemplateBuilder.build("body");
-        HeaderImageInserter.insertAtTop(pkg, png, "logo", 0L, 0L);
+        HeaderImageInserter.insertAtTop(pkg, png, "logo", 0, 0);
 
         var inline = firstInline(pkg);
         assertThat(inline.getExtent().getCx()).isPositive();
         assertThat(inline.getExtent().getCy()).isPositive();
     }
 
-    /** 取段落里第一个 inline drawing，方便断言尺寸。 */
     private static org.docx4j.dml.wordprocessingDrawing.Inline firstInline(WordprocessingMLPackage pkg) {
         P first = (P) pkg.getMainDocumentPart().getContent().get(0);
         R run = (R) first.getContent().get(0);

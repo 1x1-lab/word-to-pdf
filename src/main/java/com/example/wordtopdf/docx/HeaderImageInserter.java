@@ -22,12 +22,15 @@ public final class HeaderImageInserter {
     private HeaderImageInserter() {
     }
 
+    /** 1 cm = 360000 EMU */
+    private static final long EMU_PER_CM = 360000L;
+
     /**
      * 在文档顶部插入图片。
      *
-     * <p>尺寸规则（保持图片原始宽高比）：</p>
+     * <p>尺寸用 cm，内部转成 EMU。尺寸规则（保持原始宽高比）：</p>
      * <ul>
-     *   <li>宽和高都传（&gt; 0）→ 同时使用传入值（注意：会破坏比例，除非你算好）</li>
+     *   <li>宽和高都传（&gt; 0）→ 同时使用传入值</li>
      *   <li>只传宽度 → 高度按原始宽高比自动算</li>
      *   <li>只传高度 → 宽度按原始宽高比自动算</li>
      *   <li>都不传（都是 0）→ 保持图片原始尺寸</li>
@@ -36,8 +39,8 @@ public final class HeaderImageInserter {
     public static void insertAtTop(WordprocessingMLPackage pkg,
                                    byte[] imageBytes,
                                    String altText,
-                                   long widthEmu,
-                                   long heightEmu) throws Exception {
+                                   double widthCm,
+                                   double heightCm) throws Exception {
         if (imageBytes == null || imageBytes.length == 0) {
             throw new IllegalArgumentException("imageBytes must not be empty");
         }
@@ -47,18 +50,17 @@ public final class HeaderImageInserter {
 
         Inline inline = imagePart.createImageInline(altText, altText, 0, 1, false);
 
-        // 打印原始尺寸（调试用）
         long origCx = inline.getExtent().getCx();
         long origCy = inline.getExtent().getCy();
-        log.info("Image original size: cx={}, cy={} EMU (≈{}×{} cm)",
-                origCx, origCy, origCx / 360000, origCy / 360000);
+        log.info("Image original: {:.2f} x {:.2f} cm", origCx / (double) EMU_PER_CM, origCy / (double) EMU_PER_CM);
 
+        long widthEmu = cmToEmu(widthCm);
+        long heightEmu = cmToEmu(heightCm);
         applyDimensions(inline, widthEmu, heightEmu, origCx, origCy);
 
-        // 打印最终尺寸
-        log.info("Image final size: cx={}, cy={} EMU (≈{}×{} cm)",
-                inline.getExtent().getCx(), inline.getExtent().getCy(),
-                inline.getExtent().getCx() / 360000, inline.getExtent().getCy() / 360000);
+        log.info("Image final: {:.2f} x {:.2f} cm",
+                inline.getExtent().getCx() / (double) EMU_PER_CM,
+                inline.getExtent().getCy() / (double) EMU_PER_CM);
 
         Drawing drawing = new Drawing();
         drawing.getAnchorOrInline().add(inline);
@@ -70,6 +72,11 @@ public final class HeaderImageInserter {
         paragraph.getContent().add(run);
 
         pkg.getMainDocumentPart().getContent().add(0, paragraph);
+    }
+
+    /** cm → EMU */
+    private static long cmToEmu(double cm) {
+        return Math.round(cm * EMU_PER_CM);
     }
 
     /**
