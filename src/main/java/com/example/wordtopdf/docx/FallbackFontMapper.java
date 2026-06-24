@@ -16,8 +16,22 @@ import java.util.Set;
  */
 public class FallbackFontMapper extends Mapper {
 
+    private final PhysicalFont fallbackFont;
+
+    public FallbackFontMapper(PhysicalFont fallbackFont) {
+        this.fallbackFont = fallbackFont;
+    }
+
     @Override
     public void populateFontMappings(Set<String> documentFontNames, Fonts wmlFonts) {
-        // 手动映射已在构建时通过 put() 完成，这里不需要系统扫描。
+        // 把文档里所有字体都映射到兜底字体，避免 FOP 找不到字体。
+        if (fallbackFont == null) {
+            return;
+        }
+        for (String name : documentFontNames) {
+            if (name != null && !name.isBlank() && get(name) == null) {
+                put(name, fallbackFont);
+            }
+        }
     }
 }
