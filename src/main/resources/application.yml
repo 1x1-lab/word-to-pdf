@@ -13,7 +13,7 @@ app:
   convert:
     # 固定图片（如 Logo），插入到每份 PDF 的最顶部。
     # 支持 classpath: / file: / http(s): 前缀，或相对工作目录的路径。
-    header-image: classpath:templates/header-logo.png
+    header-image: classpath:templates/header-logo.svg
     # 图片尺寸（单位 cm）。
     # 只需要设其中一个，另一个会按图片原始宽高比自动算：
     #   - 两个都填：直接用传入值
@@ -21,7 +21,7 @@ app:
     #   - 只填高度：宽度自动按比例缩放
     #   - 两个都填 0：用图片原始尺寸
     header-image-width: 0           # 0 = 不指定
-    header-image-height: 1.67       # 高度 1.67 cm，宽度自动按比例
+    header-image-height: 2       # 高度 1.67 cm，宽度自动按比例
     # SimplePdfExporter 用的字体文件完整路径（文件系统绝对路径）。
     # docx 里所有字体（Calibri / 宋体 / 微软雅黑 ...）都会映射到这一个字体。
     # 例：/opt/myapp/fonts/SourceHanSansCN-Regular.otf

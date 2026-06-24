@@ -52,15 +52,15 @@ public final class HeaderImageInserter {
 
         long origCx = inline.getExtent().getCx();
         long origCy = inline.getExtent().getCy();
-        log.info("Image original: {:.2f} x {:.2f} cm", origCx / (double) EMU_PER_CM, origCy / (double) EMU_PER_CM);
+        log.info("Image original: {} x {} cm", origCx / EMU_PER_CM, origCy / EMU_PER_CM);
 
         long widthEmu = cmToEmu(widthCm);
         long heightEmu = cmToEmu(heightCm);
         applyDimensions(inline, widthEmu, heightEmu, origCx, origCy);
 
-        log.info("Image final: {:.2f} x {:.2f} cm",
-                inline.getExtent().getCx() / (double) EMU_PER_CM,
-                inline.getExtent().getCy() / (double) EMU_PER_CM);
+        log.info("Image final: {} x {} cm",
+                inline.getExtent().getCx() / EMU_PER_CM,
+                inline.getExtent().getCy() / EMU_PER_CM);
 
         Drawing drawing = new Drawing();
         drawing.getAnchorOrInline().add(inline);

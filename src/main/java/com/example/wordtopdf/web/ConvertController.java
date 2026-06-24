@@ -1,5 +1,6 @@
 package com.example.wordtopdf.web;
 
+import com.example.wordtopdf.config.ConvertProperties;
 import com.example.wordtopdf.service.ConvertService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,11 +47,14 @@ public class ConvertController {
 
     private final ConvertService convertService;
     private final ObjectMapper objectMapper;
+    private final ConvertProperties convertProperties;
 
-    public ConvertController(ConvertService convertService, ObjectMapper objectMapper) {
+    public ConvertController(ConvertService convertService, ObjectMapper objectMapper,
+                             ConvertProperties convertProperties) {
         this.convertService = convertService;
         // 用 Spring Boot 自带的 ObjectMapper，保证日期格式、Snake Case 等配置全局一致
         this.objectMapper = objectMapper;
+        this.convertProperties = convertProperties;
     }
 
     /**
@@ -72,7 +76,10 @@ public class ConvertController {
     @PostMapping(value = "/convert", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> convert(
             @RequestParam("template") MultipartFile template,
-            @RequestParam(value = "variables", required = false) String variables) {
+            @RequestParam(value = "variables", required = false) String variables,
+            @RequestParam(value = "logo-width", required = false) Double logoWidth,
+            @RequestParam(value = "logo-height", required = false) Double logoHeight,
+            @RequestParam(value = "skip-logo", required = false, defaultValue = "false") boolean skipLogo) {
 
         // 1. 校验上传文件非空
         if (template == null || template.isEmpty()) {
@@ -85,7 +92,7 @@ public class ConvertController {
         try {
             // 3. 调用 Service 做实际转换
             byte[] docx = template.getBytes();
-            byte[] pdf = convertService.convert(docx, vars);
+            byte[] pdf = convertService.convert(docx, vars, logoWidth, logoHeight, skipLogo);
 
             // 4. 设置响应头，让浏览器把 PDF 当下载文件处理
             HttpHeaders headers = new HttpHeaders();
@@ -142,6 +149,19 @@ public class ConvertController {
             log.error("Failed to build sample template", e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    /**
+     * 返回 Logo 尺寸的默认配置，供前端页面加载时回显到输入框。
+     *
+     * @return JSON，如 {@code {"width":0.0,"height":2.0}}
+     */
+    @GetMapping("/logo-size-defaults")
+    public ResponseEntity<Map<String, Double>> logoSizeDefaults() {
+        return ResponseEntity.ok(Map.of(
+                "width", convertProperties.getHeaderImageWidth(),
+                "height", convertProperties.getHeaderImageHeight()
+        ));
     }
 
     /**
