@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.net.URI;
-import java.nio.file.Files;
 import java.util.Locale;
 import java.util.Map;
 
@@ -48,50 +47,7 @@ public class FontInitializer {
             log.warn("app.convert.font-path not configured; PDF will not render Chinese.");
             return;
         }
-        setupFontConfig(fontPath);
         loadFont(fontPath);
-    }
-
-    /**
-     * 生成 fontconfig 配置文件并设置系统属性，解决 Linux 上无系统字体导致的
-     * {@code NoSuchFileException: fonts-symbol} 错误。
-     *
-     * <p>macOS 用 CoreText 渲染字体，不依赖 fontconfig，所以不会报错。
-     * Linux 上 Java AWT / FOP 依赖 fontconfig 发现字体，没装就会失败。
-     * 这里手动生成一个 fontconfig 配置，指向用户指定的字体目录。</p>
-     */
-    private void setupFontConfig(String fontPath) {
-        // 已通过 JVM 参数设置，跳过
-        if (System.getProperty("sun.awt.fontconfig") != null) {
-            return;
-        }
-        try {
-            File fontFile = new File(fontPath);
-            String fontDir = fontFile.getParent();
-            if (fontDir == null) {
-                return;
-            }
-
-            // 生成 fontconfig XML（直接拼字符串，不需要模板文件）
-            String xml = "<?xml version=\"1.0\"?>\n"
-                    + "<fontconfig>\n"
-                    + "  <dir>" + fontDir + "</dir>\n"
-                    + "  <alias><family>sans-serif</family><prefer><family>Source Han Sans SC</family></prefer></alias>\n"
-                    + "  <alias><family>serif</family><prefer><family>Source Han Sans SC</family></prefer></alias>\n"
-                    + "  <alias><family>monospace</family><prefer><family>Source Han Sans SC</family></prefer></alias>\n"
-                    + "  <alias><family>Symbol</family><prefer><family>Source Han Sans SC</family></prefer></alias>\n"
-                    + "  <alias><family>Wingdings</family><prefer><family>Source Han Sans SC</family></prefer></alias>\n"
-                    + "</fontconfig>\n";
-
-            File tmp = File.createTempFile("fontconfig", ".conf");
-            tmp.deleteOnExit();
-            Files.writeString(tmp.toPath(), xml);
-
-            System.setProperty("sun.awt.fontconfig", tmp.getAbsolutePath());
-            log.info("Fontconfig set: {} (font dir: {})", tmp.getAbsolutePath(), fontDir);
-        } catch (Exception e) {
-            log.warn("Failed to setup fontconfig: {}", e.toString());
-        }
     }
 
     /**

@@ -2,7 +2,6 @@ package com.example.wordtopdf.docx;
 
 import com.example.wordtopdf.config.FontInitializer;
 import org.docx4j.Docx4J;
-import org.docx4j.fonts.IdentityPlusMapper;
 import org.docx4j.fonts.Mapper;
 import org.docx4j.fonts.PhysicalFont;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
@@ -11,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.OutputStream;
+import java.util.Set;
 
 /**
  * 简化版 PDF 导出器：用 {@link FontInitializer} 加载的固定字体做所有字体的兜底。
@@ -49,16 +49,23 @@ public class SimplePdfExporter {
      * 把 docx 渲染成 PDF 写到 out。
      */
     public void export(WordprocessingMLPackage pkg, OutputStream out) throws Exception {
-        pkg.setFontMapper(buildMapper());
+        Mapper mapper = buildMapper();
+        // 把文档里实际用到的、但不在常见列表里的字体也映射到兜底字体，避免 Linux 上缺字体时报错
+        mapDocumentFonts(pkg, mapper);
+        pkg.setFontMapper(mapper);
         Docx4J.toPDF(pkg, out);
         out.flush();
     }
+
+    private static final Set<String> IGNORED_FONTS = Set.of(
+            "Times New Roman", "Courier New", "Arial", "Helvetica"
+    );
 
     /**
      * 构建 Mapper：把所有常见 Office 字体名映射到 FontInitializer 缓存的字体。
      */
     private Mapper buildMapper() {
-        IdentityPlusMapper mapper = new IdentityPlusMapper();
+        Mapper mapper = new FallbackFontMapper();
         PhysicalFont font = fontInitializer.getFont();
         if (font == null) {
             log.warn("No font loaded; PDF may not render Chinese.");
@@ -68,5 +75,29 @@ public class SimplePdfExporter {
             mapper.put(name, font);
         }
         return mapper;
+    }
+
+    /**
+     * 把文档实际使用的字体也映射到兜底字体。
+     */
+    private void mapDocumentFonts(WordprocessingMLPackage pkg, Mapper mapper) {
+        PhysicalFont font = fontInitializer.getFont();
+        if (font == null) {
+            return;
+        }
+        try {
+            Set<String> fontsInUse = pkg.getMainDocumentPart().fontsInUse();
+            for (String name : fontsInUse) {
+                if (name == null || name.isBlank() || IGNORED_FONTS.contains(name)) {
+                    continue;
+                }
+                if (mapper.get(name) == null) {
+                    mapper.put(name, font);
+                    log.debug("Mapped document font '{}' to fallback font.", name);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to map document fonts: {}", e.toString());
+        }
     }
 }
