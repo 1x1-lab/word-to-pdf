@@ -36,7 +36,9 @@ public class SimplePdfExporter {
             "Microsoft YaHei", "微软雅黑",
             "PingFang SC", "PingFang TC",
             "FangSong", "仿宋", "KaiTi", "楷体",
-            "DengXian", "等线", "DengXian Light", "等线 Light"
+            "DengXian", "等线", "DengXian Light", "等线 Light",
+            "Symbol", "Wingdings", "Wingdings 2", "Wingdings 3",
+            "Segoe UI Symbol", "MT Extra"
     };
 
     public SimplePdfExporter(FontInitializer fontInitializer) {
