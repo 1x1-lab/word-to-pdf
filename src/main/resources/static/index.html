@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8"/>
-    <title>Word 转 PDF POC</title>
+    <title>Word 转 PDF</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -16,8 +16,8 @@
             margin: 40px auto;
             padding: 0 24px;
         }
-        h1 { font-size: 22px; margin: 0 0 4px; }
-        .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+        h1 { font-size: 22px; margin: 0 0 4px; text-align: center; }
+        .subtitle { color: #6b7280; font-size: 14px; margin-bottom: 24px; text-align: center; }
         .card {
             background: #fff;
             border: 1px solid #e5e7eb;
@@ -62,15 +62,37 @@
             color: #1f2937;
         }
         .status {
-            margin-top: 12px;
-            padding: 10px 12px;
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 10px;
+            max-width: 360px;
+        }
+        .status .toast {
+            padding: 12px 16px;
             border-radius: 8px;
             font-size: 13px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            animation: toast-in 0.25s ease-out;
         }
-        .status.error { background: #fee2e2; color: #991b1b; }
-        .status.info { background: #dbeafe; color: #1e40af; }
-        .status.success { background: #dcfce7; color: #166534; }
+        @keyframes toast-in {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .status .toast.error { background: #fee2e2; color: #991b1b; }
+        .status .toast.info { background: #dbeafe; color: #1e40af; }
+        .status .toast.success { background: #dcfce7; color: #166534; }
         code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        .footer-note {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 13px;
+            color: #6b7280;
+        }
         .preview-wrap {
             margin-top: 12px;
             border: 1px solid #e5e7eb;
@@ -120,6 +142,24 @@
             border: 0;
             border-radius: 0;
         }
+        .placeholder-card {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            background: #f9fafb;
+        }
+        .placeholder-body {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 14px;
+            padding: 24px;
+        }
+        .placeholder-body .placeholder-icon {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 12px;
+        }
         @media (min-width: 1400px) {
             .container {
                 max-width: 1600px;
@@ -132,8 +172,23 @@
                 position: sticky;
                 top: 24px;
             }
+            .preview-card {
+                height: calc(100vh - 160px);
+            }
+            .preview-card .preview-wrap {
+                height: 100%;
+                display: grid;
+                grid-template-rows: auto 1fr;
+                margin-top: 0;
+                border: 0;
+                border-radius: 0;
+            }
+            .placeholder-card {
+                min-height: auto;
+            }
             .preview-frame {
-                height: calc(100vh - 120px);
+                height: 100%;
+                width: 100%;
             }
         }
         @media (max-width: 1399px) {
@@ -145,11 +200,11 @@
 </head>
 <body>
     <div class="container">
+        <h1>Word 转 PDF</h1>
+        <div class="subtitle">上传 <code>.docx</code> 模板，填充 <code>${变量}</code>，导出 PDF（顶部自动插入 Logo）。</div>
+
         <div class="layout">
             <div class="left-col">
-                <h1>Word 转 PDF POC</h1>
-                <div class="subtitle">上传 <code>.docx</code> 模板，填充 <code>${变量}</code>，导出 PDF（顶部自动插入 Logo）。</div>
-
                 <form id="form" class="card">
                     <label for="template">1. 选择 Word 模板（.docx）</label>
                     <input type="file" id="template" name="template" accept=".docx" required/>
@@ -161,7 +216,7 @@
   "title": "示例标题",
   "name": "张三",
   "date": "2026-06-18",
-  "company": "POC 演示公司"
+  "company": "演示公司"
 }</textarea>
                         <div class="hint">键名与 <code>${...}</code> 内的文本一致。值可以是字符串、数字、布尔值。</div>
                     </div>
@@ -183,6 +238,13 @@
                                 只填一个 = 另一个按比例自动算。都留空 = 用配置默认值。
                             </div>
                         </div>
+
+                        <div style="margin-top: 12px;">
+                            <label for="headerImage">4. 自定义 Logo（可选）</label>
+                            <input type="file" id="headerImage" name="header-image" accept=".png,.jpg,.jpeg,.gif,.svg"/>
+                            <div class="hint">不传则使用系统默认 Logo。支持 PNG / JPG / GIF / SVG。</div>
+                        </div>
+
                         <label style="margin-top: 10px; display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer;">
                             <input type="checkbox" id="skipLogo" name="skip-logo" style="margin: 0;"/>
                             <span>不插入 Logo</span>
@@ -195,18 +257,22 @@
                         <a href="/api/sample-template" class="btn secondary" style="text-decoration:none;">下载示例模板</a>
                     </div>
 
-                    <div id="status" class="status" style="display:none;"></div>
-                </form>
+                    <div id="status" class="status"></div>
 
-                <div class="card">
-                    <div style="font-size: 13px; color: #6b7280;">
+                    <div class="footer-note">
                         <strong>开源依赖</strong><br/>
                         Spring Boot (Apache-2.0) · docx4j (Apache-2.0) · Apache FOP (Apache-2.0)
                     </div>
-                </div>
+                </form>
             </div>
 
             <div class="right-col">
+                <div id="preview-placeholder" class="preview-card placeholder-card">
+                    <div class="placeholder-body">
+                        <span class="placeholder-icon">&#128196;</span>
+                        <p>上传模板并点击「转换为 PDF」后，预览将显示在这里</p>
+                    </div>
+                </div>
                 <div id="preview-section" class="preview-card" style="display:none;">
                     <div class="preview-wrap">
                         <div class="preview-head">
@@ -223,18 +289,37 @@
     <script>
         const form = document.getElementById('form');
         const submitBtn = document.getElementById('submitBtn');
-        const status = document.getElementById('status');
         const variablesEl = document.getElementById('variables');
 
+        function clearToasts() {
+            const container = document.getElementById('status');
+            container.innerHTML = '';
+        }
+
         function showStatus(type, msg) {
-            status.style.display = 'block';
-            status.className = 'status ' + type;
-            status.textContent = msg;
+            const container = document.getElementById('status');
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            toast.textContent = msg;
+            container.appendChild(toast);
+
+            const duration = type === 'info' ? 5000 : 4000;
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 250);
+            }, duration);
         }
 
         const previewSection = document.getElementById('preview-section');
         const previewFrame = document.getElementById('preview-frame');
         const previewDownload = document.getElementById('preview-download');
+        const previewPlaceholder = document.getElementById('preview-placeholder');
         let currentBlobUrl = null;
 
         // 页面加载时拉取后端默认 Logo 尺寸并回显到输入框
@@ -285,8 +370,13 @@
             if (document.getElementById('skipLogo').checked) {
                 fd.append('skip-logo', 'true');
             }
+            const headerImageInput = document.getElementById('headerImage');
+            if (headerImageInput.files && headerImageInput.files[0]) {
+                fd.append('header-image', headerImageInput.files[0]);
+            }
 
             submitBtn.disabled = true;
+            clearToasts();
             showStatus('info', '转换中…请稍候。');
             // Clear previous preview.
             if (currentBlobUrl) {
@@ -295,6 +385,7 @@
             }
             previewFrame.src = 'about:blank';
             previewSection.style.display = 'none';
+            previewPlaceholder.style.display = 'flex';
 
             try {
                 const resp = await fetch('/api/convert', { method: 'POST', body: fd });
@@ -311,6 +402,7 @@
                 // Inline preview via iframe.
                 previewFrame.src = currentBlobUrl;
                 previewDownload.href = currentBlobUrl;
+                previewPlaceholder.style.display = 'none';
                 previewSection.style.display = 'block';
 
                 showStatus('success',

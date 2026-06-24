@@ -79,7 +79,8 @@ public class ConvertController {
             @RequestParam(value = "variables", required = false) String variables,
             @RequestParam(value = "logo-width", required = false) Double logoWidth,
             @RequestParam(value = "logo-height", required = false) Double logoHeight,
-            @RequestParam(value = "skip-logo", required = false, defaultValue = "false") boolean skipLogo) {
+            @RequestParam(value = "skip-logo", required = false, defaultValue = "false") boolean skipLogo,
+            @RequestParam(value = "header-image", required = false) MultipartFile headerImage) {
 
         // 1. 校验上传文件非空
         if (template == null || template.isEmpty()) {
@@ -92,7 +93,8 @@ public class ConvertController {
         try {
             // 3. 调用 Service 做实际转换
             byte[] docx = template.getBytes();
-            byte[] pdf = convertService.convert(docx, vars, logoWidth, logoHeight, skipLogo);
+            byte[] customHeaderImage = headerImage != null && !headerImage.isEmpty() ? headerImage.getBytes() : null;
+            byte[] pdf = convertService.convert(docx, vars, logoWidth, logoHeight, skipLogo, customHeaderImage);
 
             // 4. 设置响应头，让浏览器把 PDF 当下载文件处理
             HttpHeaders headers = new HttpHeaders();
@@ -133,7 +135,7 @@ public class ConvertController {
                     "日期：${date}",
                     "公司：${company}",
                     "",
-                    "这是一个 POC 演示模板。所有 ${...} 占位符会被替换为变量 JSON 中对应的值。"
+                    "这是一个演示模板。所有 ${...} 占位符会被替换为变量 JSON 中对应的值。"
             )) {
                 main.getContent().add(paragraphOf(line));
             }

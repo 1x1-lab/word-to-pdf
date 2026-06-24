@@ -1,4 +1,4 @@
-# Word → PDF POC
+# Word → PDF
 
 将 `.docx` 模板转换为 PDF，支持：
 
@@ -189,7 +189,7 @@ mvn test
 
 ---
 
-## 已知限制（POC 范围）
+## 已知限制
 
 - **变量类型**：当前只支持简单文本填充。如果未来要表格循环、条件区块、图片占位符，再换 poi-tl / office-stamper 之类的模板引擎（`ConvertService` 只依赖 `DocxTemplateFiller` 一个静态方法，替换很容易）。
 - **漏传变量**：占位符 `${key}` 原样保留在 PDF 里（方便发现漏传字段）。

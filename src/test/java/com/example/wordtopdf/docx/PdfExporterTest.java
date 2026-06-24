@@ -17,7 +17,7 @@ class PdfExporterTest {
     @Test
     void producesValidPdf(@TempDir Path tmp) throws Exception {
         WordprocessingMLPackage pkg = DocxTemplateBuilder.build(
-                "POC PDF test",
+                "PDF test",
                 "Title: ${title}",
                 "Body content."
         );

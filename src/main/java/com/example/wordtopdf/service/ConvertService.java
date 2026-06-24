@@ -67,7 +67,7 @@ public class ConvertService {
      * @throws ConversionException 任何步骤失败
      */
     public byte[] convert(byte[] docxTemplate, Map<String, ?> variables) throws ConversionException {
-        return convert(docxTemplate, variables, null, null, false);
+        return convert(docxTemplate, variables, null, null, false, null);
     }
 
     /**
@@ -82,7 +82,7 @@ public class ConvertService {
      */
     public byte[] convert(byte[] docxTemplate, Map<String, ?> variables,
                           Double logoWidth, Double logoHeight) throws ConversionException {
-        return convert(docxTemplate, variables, logoWidth, logoHeight, false);
+        return convert(docxTemplate, variables, logoWidth, logoHeight, false, null);
     }
 
     /**
@@ -98,6 +98,24 @@ public class ConvertService {
      */
     public byte[] convert(byte[] docxTemplate, Map<String, ?> variables,
                           Double logoWidth, Double logoHeight, boolean skipLogo) throws ConversionException {
+        return convert(docxTemplate, variables, logoWidth, logoHeight, skipLogo, null);
+    }
+
+    /**
+     * 把 docx 模板转成 PDF（完整参数：Logo 尺寸、跳过 Logo、自定义 Logo）。
+     *
+     * @param docxTemplate     docx 文件的原始字节
+     * @param variables        占位符键值对，key 对应 {@code ${key}}
+     * @param logoWidth        Logo 宽度（cm），null = 用配置默认值
+     * @param logoHeight       Logo 高度（cm），null = 用配置默认值
+     * @param skipLogo         是否跳过在顶部插入 Logo
+     * @param customHeaderImage 用户上传的自定义 Logo 字节；null = 用配置默认 Logo
+     * @return 渲染好的 PDF 字节
+     * @throws ConversionException 任何步骤失败
+     */
+    public byte[] convert(byte[] docxTemplate, Map<String, ?> variables,
+                          Double logoWidth, Double logoHeight, boolean skipLogo,
+                          byte[] customHeaderImage) throws ConversionException {
         long start = System.currentTimeMillis();
 
         try (ByteArrayInputStream in = new ByteArrayInputStream(docxTemplate);
@@ -111,11 +129,11 @@ public class ConvertService {
             log.info("Filled {} placeholder(s) for {} variable(s).", replacements,
                     variables == null ? 0 : variables.size());
 
-            // 3. 顶部插入固定图片（用传入尺寸或配置默认；可跳过）
+            // 3. 顶部插入固定图片（用传入尺寸或配置默认；可跳过；可用自定义 Logo）
             if (!skipLogo) {
                 double w = logoWidth != null ? logoWidth : properties.getHeaderImageWidth();
                 double h = logoHeight != null ? logoHeight : properties.getHeaderImageHeight();
-                insertHeaderImage(pkg, w, h);
+                insertHeaderImage(pkg, w, h, customHeaderImage);
             } else {
                 log.info("Header image insertion skipped by request.");
             }
@@ -149,15 +167,18 @@ public class ConvertService {
     /**
      * 在文档顶部插入头图。找不到头图资源时跳过（不算错误，方便禁用）。
      */
-    private void insertHeaderImage(WordprocessingMLPackage pkg, double widthCm, double heightCm) throws ConversionException {
-        byte[] image = loadHeaderImage();
+    private void insertHeaderImage(WordprocessingMLPackage pkg, double widthCm, double heightCm,
+                                   byte[] customHeaderImage) throws ConversionException {
+        byte[] image = customHeaderImage != null && customHeaderImage.length > 0
+                ? customHeaderImage
+                : loadHeaderImage();
         if (image == null) {
             log.info("Header image disabled (resource not found); skipping.");
             return;
         }
         try {
             byte[] imageToInsert = SvgToPngConverter.convertIfSvg(image);
-            String altText = deriveAltText(properties.getHeaderImage());
+            String altText = customHeaderImage != null ? "custom-header-image" : deriveAltText(properties.getHeaderImage());
             HeaderImageInserter.insertAtTop(
                     pkg,
                     imageToInsert,

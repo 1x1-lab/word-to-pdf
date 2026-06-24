@@ -46,7 +46,7 @@ class ConvertControllerIT {
 
         mvc.perform(multipart("/api/convert")
                         .file(template)
-                        .param("variables", "{\"name\":\"Alice\",\"product\":\"Word-to-PDF POC\"}"))
+                        .param("variables", "{\"name\":\"Alice\",\"product\":\"Word-to-PDF\"}"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("application/pdf"))
                 .andExpect(header().string("Content-Disposition",
