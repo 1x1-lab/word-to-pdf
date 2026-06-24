@@ -58,11 +58,12 @@ public final class SvgToPngConverter {
 
         PNGTranscoder transcoder = new PNGTranscoder();
         if (size != null && size.width > 0 && size.height > 0) {
-            transcoder.addTranscodingHint(PNGTranscoder.KEY_WIDTH, (float) size.width);
-            transcoder.addTranscodingHint(PNGTranscoder.KEY_HEIGHT, (float) size.height);
-            log.info("SVG transcoding to {}x{} px", size.width, size.height);
+            // 按 viewBox/width 的真实比例，只定宽度，让 Batik 自动算高度，
+            // 避免同时设宽高导致按 preserveAspectRatio 加白边。
+            int targetWidth = Math.max(size.width, DEFAULT_SIZE);
+            transcoder.addTranscodingHint(PNGTranscoder.KEY_WIDTH, (float) targetWidth);
+            log.info("SVG transcoding to width {} px (aspect ratio {}:{})", targetWidth, size.width, size.height);
         } else {
-            // 没有尺寸时按 viewBox 等比例缩放到 DEFAULT_SIZE 宽
             transcoder.addTranscodingHint(PNGTranscoder.KEY_WIDTH, (float) DEFAULT_SIZE);
             log.warn("SVG has no explicit size; transcoding to {} px wide", DEFAULT_SIZE);
         }
@@ -79,17 +80,12 @@ public final class SvgToPngConverter {
     /**
      * 从 SVG 字节里解析原始像素尺寸。
      *
-     * <p>优先读 {@code width}/{@code height} 属性；没有则读 {@code viewBox} 的第三、四个值。
-     * 只支持纯数字或带 px 单位的长度，其他单位（cm、pt、%）会被忽略并走 viewBox 兜底。</p>
+     * <p>优先读 {@code viewBox} 的宽高（它定义了内容的真实比例），
+     * 没有 viewBox 再读 {@code width}/{@code height}。
+     * 只支持纯数字或带 px 单位的长度。</p>
      */
     private static Dimension extractSvgSize(byte[] svgBytes) {
         String svg = new String(svgBytes, StandardCharsets.UTF_8);
-
-        Float width = parseLength(extractAttribute(svg, "width"));
-        Float height = parseLength(extractAttribute(svg, "height"));
-        if (width != null && height != null && width > 0 && height > 0) {
-            return new Dimension(width.intValue(), height.intValue());
-        }
 
         String viewBox = extractAttribute(svg, "viewBox");
         if (viewBox != null && !viewBox.isBlank()) {
@@ -105,6 +101,12 @@ public final class SvgToPngConverter {
                     // ignore malformed viewBox
                 }
             }
+        }
+
+        Float width = parseLength(extractAttribute(svg, "width"));
+        Float height = parseLength(extractAttribute(svg, "height"));
+        if (width != null && height != null && width > 0 && height > 0) {
+            return new Dimension(width.intValue(), height.intValue());
         }
         return null;
     }
